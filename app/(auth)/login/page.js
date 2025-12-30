@@ -18,16 +18,46 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const validateForm = () => {
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!password) {
+      setError('Password is required');
+      return false;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password 
+        }),
       });
 
       const data = await response.json();
@@ -36,15 +66,22 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store token
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
+      // Store token and user data
+      if (data.data?.token) {
+        localStorage.setItem('token', data.data.token);
+      }
+      if (data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+      }
 
       toast.success('Login successful!');
+      
+      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err) {
-      setError(err.message);
-      toast.error(err.message);
+      const errorMessage = err.message || 'An error occurred during login';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -81,6 +118,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -93,6 +131,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
           </CardContent>
@@ -103,7 +142,7 @@ export default function LoginPage() {
             </Button>
             <div className="text-sm text-center text-muted-foreground">
               Don't have an account?{' '}
-              <Link href="/register" className="text-primary hover:underline">
+              <Link href="/register" className="text-primary hover:underline font-medium">
                 Sign up
               </Link>
             </div>

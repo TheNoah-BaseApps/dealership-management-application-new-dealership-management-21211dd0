@@ -27,35 +27,62 @@ export default function RegisterPage() {
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setError('');
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.password) {
+      setError('Password is required');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    if (!formData.role) {
+      setError('Please select a role');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!validateForm()) {
       setLoading(false);
       return;
     }
 
-    if (!formData.role) {
-      setError('Please select a role');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
           role: formData.role,
-          phone: formData.phone,
+          phone: formData.phone.trim(),
         }),
       });
 
@@ -65,15 +92,23 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Store token
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
+      // Store token and user data
+      if (data.data?.token) {
+        localStorage.setItem('token', data.data.token);
+      }
+      if (data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+      }
 
-      toast.success('Registration successful!');
-      router.push('/dashboard');
+      toast.success('Registration successful! Welcome aboard!');
+      
+      // Redirect to dashboard
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
     } catch (err) {
       setError(err.message);
-      toast.error(err.message);
+      toast.error(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -160,7 +195,9 @@ export default function RegisterPage() {
                 onChange={(e) => handleChange('password', e.target.value)}
                 required
                 disabled={loading}
+                minLength={6}
               />
+              <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
